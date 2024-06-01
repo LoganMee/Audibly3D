@@ -36,6 +36,7 @@ class Audio3DInterface:
         self.rightStartingVolume = self.volume.GetChannelVolumeLevelScalar(1)
 
         self.mode = IntVar()
+        self.orbitRunning = False
 
     
     #################### Subroutines ####################
@@ -64,6 +65,7 @@ class Audio3DInterface:
         canvas.unbind('<B1-Motion>')
 
     def orbitAudio(self, audioSource, radius, canvas, canvasCentre, orbitRadius):
+        self.orbitRunning = True
         self.disableClickMode(canvas)
         canvas.moveto(audioSource, canvasCentre[0], canvasCentre[1] + orbitRadius)
         angle = 0
@@ -77,6 +79,7 @@ class Audio3DInterface:
             self.volumeChange(newX, newY, canvasCentre)
 
             time.sleep(5/144)
+        self.orbitRunning = False
 
     def volumeChange(self, newX, newY, canvasCentre):
         distance = distanceBetweenPoints(canvasCentre[0], canvasCentre[1], newX, newY)
@@ -119,8 +122,11 @@ class Audio3DInterface:
         menubar.add_cascade(label="Settings", menu=settingsMenu, command=self.createSettingsWidgets)
 
         #Modes
-        self.orbitThread = threading.Thread(target=self.orbitAudio, args=(audioSource, radius, canvas, canvasCentre, 30))
-        self.orbitThread.daemon = True
+        def threadStart():
+            if not self.orbitRunning:
+                orbitThread = threading.Thread(target=self.orbitAudio, args=(audioSource, radius, canvas, canvasCentre, 30))
+                orbitThread.daemon = True
+                orbitThread.start()
 
         modesLabel = Label(self.sideBar, text="Modes:", width=15)
         clickModeButton = Radiobutton(
@@ -140,7 +146,7 @@ class Audio3DInterface:
             indicator=0,
             background="light blue",
             width=15,
-            command=lambda:self.orbitThread.start())
+            command=threadStart)
         modesLabel.grid(row=0, column=1, padx=10, pady=1)
         clickModeButton.grid(row=1, column=1, padx=10, pady=1)
         orbitModeButton.grid(row=2, column=1, padx=10, pady=1)
