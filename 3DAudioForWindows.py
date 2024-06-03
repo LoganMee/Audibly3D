@@ -22,7 +22,8 @@ class Audio3DInterface:
     def __init__(self):
         self.root = Tk()
         self.root.title("3D Audio")
-        self.root.geometry("525x700")
+        self.root.geometry("275x400")
+        self.root.resizable(False, False)
         
         self.mainFrame = Frame(self.root)
         self.mainFrame.grid(column=0, row=0, padx=10, pady=10)
@@ -67,8 +68,10 @@ class Audio3DInterface:
     def orbitAudio(self, audioSource, radius, canvas, canvasCentre, orbitRadius):
         self.orbitRunning = True
         self.disableClickMode(canvas)
+        #angle = 0
+        angle = angleBetweenPoints(canvasCentre[0], canvas.coords(audioSource)[0], distanceBetweenPoints(canvasCentre[0], canvasCentre[1], canvas.coords(audioSource)[0], canvas.coords(audioSource)[1]))
+        print(angle)
         canvas.moveto(audioSource, canvasCentre[0], canvasCentre[1] + orbitRadius)
-        angle = 0
 
         while self.mode.get() == 1:
             angle += (1/72*math.pi)
@@ -78,7 +81,7 @@ class Audio3DInterface:
             canvas.moveto(audioSource, newX - radius/2, newY - radius/2)
             self.volumeChange(newX, newY, canvasCentre)
 
-            time.sleep(5/144)
+            time.sleep(12/144)
         self.orbitRunning = False
 
     def volumeChange(self, newX, newY, canvasCentre):
@@ -103,8 +106,8 @@ class Audio3DInterface:
         #################### GUI ####################
         #Canvas for Audio Simulation Visualisation
         radius = 25
-        canvasWidth = 500
-        canvasHeight = 500
+        canvasWidth = 250
+        canvasHeight = 250
         canvasCentre = [canvasWidth/2, canvasHeight/2]
 
         canvas = Canvas(self.mainFrame, width=canvasWidth, height=canvasHeight, bg="white")
@@ -124,7 +127,7 @@ class Audio3DInterface:
         #Modes
         def threadStart():
             if not self.orbitRunning:
-                orbitThread = threading.Thread(target=self.orbitAudio, args=(audioSource, radius, canvas, canvasCentre, 30))
+                orbitThread = threading.Thread(target=self.orbitAudio, args=(audioSource, radius, canvas, canvasCentre, 25))
                 orbitThread.daemon = True
                 orbitThread.start()
 
