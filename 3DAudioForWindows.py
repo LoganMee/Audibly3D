@@ -94,10 +94,15 @@ class Audio3DInterface:
 
         angle = angleBetweenPoints(canvasCentre[0], newX, distance)
 
-        leftIntensity = ((((math.sin(angle-math.pi)/2)+0.5)/(3/2))+(1/3)) * intensityMultiplier #minimum audio level of 1/3
-        rightIntensity = ((((math.sin(angle)/2)+0.5)/(3/2))+(1/3)) * intensityMultiplier
+        #Old exponential functions
+        #leftIntensity = ((((math.sin(angle-math.pi)/2)+0.5)/(3/2))+(1/3)) * intensityMultiplier #minimum audio level of 1/3
+        #rightIntensity = ((((math.sin(angle)/2)+0.5)/(3/2))+(1/3)) * intensityMultiplier
 
-        #print(leftIntensity, rightIntensity)
+        #New linear functions
+        leftIntensity = ((((((angle/(math.pi/2))*-1)/2)+0.5)/(3/2))+(1/3)) * intensityMultiplier #minimum audio level of 1/3
+        rightIntensity = (((((angle/(math.pi/2))/2)+0.5)/(3/2))+(1/3)) * intensityMultiplier
+
+        print(leftIntensity, rightIntensity)
         
         self.volume.SetChannelVolumeLevelScalar(0, leftIntensity, None) #Left Channel
         self.volume.SetChannelVolumeLevelScalar(1, rightIntensity, None) #Right Channel
