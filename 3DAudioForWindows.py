@@ -16,6 +16,12 @@ def angleBetweenPoints(x1, x2, hypotenuse):
     angle = math.asin(changeInX/hypotenuse) #Gets angle in radians
     return angle
 
+def angleBetweenPoints2(x1, x2, y1, y2): #Uses atan2 to preserve directionality but doesnt work with values of 0
+    changeInX = x2 - x1
+    changeInY = y2 - y1
+    angle = math.atan2(changeInY, changeInX) #Gets angle in radians
+    return angle
+
 
 class Audio3DInterface:
 
@@ -64,19 +70,18 @@ class Audio3DInterface:
     
     def disableClickMode(self, canvas):
         canvas.unbind('<B1-Motion>')
-
+    
     def orbitAudio(self, audioSource, radius, canvas, canvasCentre, orbitRadius):
         self.orbitRunning = True
         self.disableClickMode(canvas)
-        #angle = 0
-        angle = angleBetweenPoints(canvasCentre[0], canvas.coords(audioSource)[0], distanceBetweenPoints(canvasCentre[0], canvasCentre[1], canvas.coords(audioSource)[0], canvas.coords(audioSource)[1]))
-        print(angle)
-        canvas.moveto(audioSource, canvasCentre[0], canvasCentre[1] + orbitRadius)
+        angle = angleBetweenPoints2(canvasCentre[0], canvas.coords(audioSource)[0]+ radius/2, canvasCentre[1], canvas.coords(audioSource)[1]+ radius/2)
+        #print("start angle:", angle)
+        canvas.moveto(audioSource, canvasCentre[0] + math.cos(angle)*radius - radius/2, canvasCentre[1] + math.sin(angle)*radius - radius/2)
 
         while self.mode.get() == 1:
             angle += (1/72*math.pi)
-            newX = canvasCentre[0] + (math.sin(angle) * orbitRadius)
-            newY = canvasCentre[1] + (math.cos(angle) * orbitRadius)
+            newX = canvasCentre[0] + (math.cos(angle) * orbitRadius)
+            newY = canvasCentre[1] + (math.sin(angle) * orbitRadius)
 
             canvas.moveto(audioSource, newX - radius/2, newY - radius/2)
             self.volumeChange(newX, newY, canvasCentre)
@@ -102,7 +107,7 @@ class Audio3DInterface:
         leftIntensity = ((((((angle/(math.pi/2))*-1)/2)+0.5)/(3/2))+(1/3)) * intensityMultiplier #minimum audio level of 1/3
         rightIntensity = (((((angle/(math.pi/2))/2)+0.5)/(3/2))+(1/3)) * intensityMultiplier
 
-        print(leftIntensity, rightIntensity)
+        #print(leftIntensity, rightIntensity)
         
         self.volume.SetChannelVolumeLevelScalar(0, leftIntensity, None) #Left Channel
         self.volume.SetChannelVolumeLevelScalar(1, rightIntensity, None) #Right Channel
