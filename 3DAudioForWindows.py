@@ -12,9 +12,12 @@ def distanceBetweenPoints(x1,y1,x2,y2):
     return distance
 
 def angleBetweenPoints(x1, x2, hypotenuse):
-    changeInX = x2 - x1
-    angle = math.asin(changeInX/hypotenuse) #Gets angle in radians
-    return angle
+    if hypotenuse > 0:
+        changeInX = x2 - x1
+        angle = math.asin(changeInX/hypotenuse) #Gets angle in radians
+        return angle
+    else:
+        return 0
 
 def angleBetweenPoints2(x1, x2, y1, y2): #Uses atan2 to preserve directionality but doesnt work with values of 0
     changeInX = x2 - x1
