@@ -70,9 +70,11 @@ class Audio3DInterface:
     
     def clickMode(self, audioSource, radius, canvas, canvasCentre, canvasHeight, canvasWidth):
         canvas.bind('<B1-Motion>', lambda event:self.move(event, audioSource, radius, canvas, canvasCentre, canvasHeight, canvasWidth))
+        canvas.bind('<Button-1>', lambda event:self.move(event, audioSource, radius, canvas, canvasCentre, canvasHeight, canvasWidth))
     
     def disableClickMode(self, canvas):
         canvas.unbind('<B1-Motion>')
+        canvas.unbind('<Button-1>')
     
     def orbitAudio(self, audioSource, radius, canvas, canvasCentre, orbitRadius):
         self.orbitRunning = True
@@ -128,7 +130,7 @@ class Audio3DInterface:
         audioSource = canvas.create_oval(canvasCentre[0]-radius/2, canvasCentre[1]-radius*2, canvasCentre[0]+radius/2, canvasCentre[1]-radius, outline="black", fill="Grey", width=2)
         canvas.grid(column=0, row=0)
 
-        canvas.bind('<B1-Motion>', lambda event:self.move(event, audioSource, radius, canvas, canvasCentre, canvasHeight, canvasWidth))
+        self.clickMode(audioSource, radius, canvas, canvasCentre, canvasHeight, canvasWidth)
 
         #Menu
         menubar = Menu(self.root)
