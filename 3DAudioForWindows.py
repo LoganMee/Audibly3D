@@ -39,17 +39,20 @@ class Audio3DInterface:
         self.sideBar = Frame(self.root)
         self.sideBar.grid(column=0, row=1, padx=10, pady=10)
 
-        self.devices = AudioUtilities.GetSpeakers()
-        self.interface = self.devices.Activate(IAudioEndpointVolume._iid_, CLSCTX_ALL, None)
-        self.volume = self.interface.QueryInterface(IAudioEndpointVolume)
-        self.leftStartingVolume = self.volume.GetChannelVolumeLevelScalar(0)
-        self.rightStartingVolume = self.volume.GetChannelVolumeLevelScalar(1)
+        self.setupAudio()
 
         self.mode = IntVar()
         self.orbitRunning = False
 
     
     #################### Subroutines ####################
+    def setupAudio(self):
+        self.devices = AudioUtilities.GetSpeakers()
+        self.interface = self.devices.Activate(IAudioEndpointVolume._iid_, CLSCTX_ALL, None)
+        self.volume = self.interface.QueryInterface(IAudioEndpointVolume)
+        self.leftStartingVolume = self.volume.GetChannelVolumeLevelScalar(0)
+        self.rightStartingVolume = self.volume.GetChannelVolumeLevelScalar(1)
+    
     def onClosing(self):
         self.volume.SetChannelVolumeLevelScalar(0, self.leftStartingVolume, None)
         self.volume.SetChannelVolumeLevelScalar(1, self.rightStartingVolume, None)
@@ -134,10 +137,8 @@ class Audio3DInterface:
 
         #Menu
         menubar = Menu(self.root)
-        self.root.config(menu=menubar)    
-
-        settingsMenu = Menu(menubar, tearoff=False)
-        menubar.add_cascade(label="Settings", menu=settingsMenu, command=self.createSettingsWidgets)
+        self.root.config(menu=menubar)
+        menubar.add_command(label="Settings", command=self.createSettingsWidgets)
 
         #Modes
         def threadStart():
@@ -169,8 +170,45 @@ class Audio3DInterface:
         clickModeButton.grid(row=1, column=1, padx=10, pady=1)
         orbitModeButton.grid(row=2, column=1, padx=10, pady=1)
 
+
+
+    ##### Settings Window ####
     def createSettingsWidgets(self):
-        pass
+        self.settingsWin = Toplevel(self.root)
+        self.settingsWin.title("Settings")
+        self.settingsWin.geometry("275x400")
+    #Output Device Settings
+        outputDeviceSettingsLabel = Label(self.settingsWin, text = "Output Device Settings:")
+        outputDeviceSettingsLabel.config(bg="Gray", width=30)
+        outputDeviceSettingsLabel.grid(column=0, row=0, columnspan=2)
+
+        outputDeviceLabel = Label(self.settingsWin, text = f"Output Device: ---") #{self.devices.GetId()}"
+        outputDeviceLabel.grid(column=0, row=1)
+        
+        refindOutputDeviceButton = Button(self.settingsWin, width=17, text="Refind Output Device", command=self.setupAudio)
+        refindOutputDeviceButton.grid(column=0, row=2, columnspan=2, pady=5)
+    #Orbit Settings
+        orbitSettingsLabel = Label(self.settingsWin, text = "Orbit Mode Settings:")
+        orbitSettingsLabel.config(bg="Gray", width=30)
+        orbitSettingsLabel.grid(column=0, row=3, columnspan=2, pady=5)
+        
+        orbitRadiusLabel = Label(self.settingsWin, text = "Orbit Radius (Px):")
+        orbitRadiusLabel.grid(column=0, row=4)
+        orbitRadiusSlider = Scale(self.settingsWin, from_=25, to=100, orient=HORIZONTAL)
+        orbitRadiusSlider.grid(column=1, row=4)
+
+        orbitSpeedLabel = Label(self.settingsWin, text = "Orbit Radius (Px):")
+        orbitSpeedLabel.grid(column=0, row=5)
+        orbitSpeedSlider = Scale(self.settingsWin, from_=25, to=100, orient=HORIZONTAL)
+        orbitSpeedSlider.grid(column=1, row=5)
+        
+        orbitDirectionLabel = Label(self.settingsWin, text = "Orbit Direction:")
+        orbitDirectionLabel.grid(column=0, row=6)
+
+        orbitRefreshRateLabel = Label(self.settingsWin, text = "Orbit Refresh Rate:")
+        orbitRefreshRateLabel.grid(column=0, row=7)
+
+
 
 def main():
     audioSys1 = Audio3DInterface()
