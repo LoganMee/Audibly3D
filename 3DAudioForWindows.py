@@ -2,6 +2,8 @@ from tkinter import *
 import math, time, threading
 from comtypes import CLSCTX_ALL
 from pycaw.pycaw import AudioUtilities, IAudioEndpointVolume
+import os
+dir = os.path.dirname(__file__)
 
 
 #mathmatical Functions
@@ -39,10 +41,16 @@ class Audio3DInterface:
         self.sideBar = Frame(self.root)
         self.sideBar.grid(column=0, row=1, padx=10, pady=10)
 
-        self.setupAudio()
-
         self.mode = IntVar()
+        self.minLvl = IntVar()
+        self.orbitDirection = IntVar()
+        self.orbitSpeed = IntVar()
+        self.orbitRadius = IntVar()
+        self.refreshRate = IntVar()
         self.orbitRunning = False
+
+        self.setupAudio()
+        self.loadSettings()
 
     
     #################### Subroutines ####################
@@ -52,6 +60,12 @@ class Audio3DInterface:
         self.volume = self.interface.QueryInterface(IAudioEndpointVolume)
         self.leftStartingVolume = self.volume.GetChannelVolumeLevelScalar(0)
         self.rightStartingVolume = self.volume.GetChannelVolumeLevelScalar(1)
+
+    def loadSettings(self):
+        self.minLvl.set(33)
+        self.orbitSpeed.set(50)
+        self.orbitRadius.set(26)
+        self.refreshRate.set(12)
     
     def onClosing(self):
         self.volume.SetChannelVolumeLevelScalar(0, self.leftStartingVolume, None)
@@ -154,7 +168,7 @@ class Audio3DInterface:
             variable=self.mode,
             value=0,
             indicator=0,
-            background="light blue",
+            bg="light blue",
             width=15,
             command=lambda:self.clickMode(audioSource, radius, canvas, canvasCentre, canvasHeight, canvasWidth))
         orbitModeButton = Radiobutton(
@@ -163,7 +177,7 @@ class Audio3DInterface:
             variable=self.mode,
             value=1,
             indicator=0,
-            background="light blue",
+            bg="light blue",
             width=15,
             command=threadStart)
         modesLabel.grid(row=0, column=1, padx=10, pady=1)
@@ -176,38 +190,59 @@ class Audio3DInterface:
     def createSettingsWidgets(self):
         self.settingsWin = Toplevel(self.root)
         self.settingsWin.title("Settings")
-        self.settingsWin.geometry("275x400")
+        self.settingsWin.geometry("225x430")
+        self.clockwise = PhotoImage(file=os.path.join(dir, "images/clockwise.png")).subsample(18,18)
+        self.antiClockwise = PhotoImage(file=os.path.join(dir, "images/antiClockwise.png")).subsample(18,18)
     #Output Device Settings
         outputDeviceSettingsLabel = Label(self.settingsWin, text = "Output Device Settings:")
         outputDeviceSettingsLabel.config(bg="Gray", width=30)
-        outputDeviceSettingsLabel.grid(column=0, row=0, columnspan=2)
+        outputDeviceSettingsLabel.grid(column=0, row=0, columnspan=3)
 
         outputDeviceLabel = Label(self.settingsWin, text = f"Output Device: ---") #{self.devices.GetId()}"
         outputDeviceLabel.grid(column=0, row=1)
         
         refindOutputDeviceButton = Button(self.settingsWin, width=17, text="Refind Output Device", command=self.setupAudio)
-        refindOutputDeviceButton.grid(column=0, row=2, columnspan=2, pady=5)
+        refindOutputDeviceButton.grid(column=0, row=2, columnspan=3, pady=5)
+    #Audio Settings
+        audioSettingsLabel = Label(self.settingsWin, text = "Audio Settings:")
+        audioSettingsLabel.config(bg="Gray", width=30)
+        audioSettingsLabel.grid(column=0, row=3, columnspan=3, pady=5)
+
+        minLvlLabel = Label(self.settingsWin, text = "Min Audio Level:")
+        minLvlLabel.grid(column=0, row=4)
+        minLvlSlider = Scale(self.settingsWin, from_=25, to=100, orient=HORIZONTAL, variable=self.minLvl)
+        minLvlSlider.grid(column=1, row=4, columnspan=2)
     #Orbit Settings
         orbitSettingsLabel = Label(self.settingsWin, text = "Orbit Mode Settings:")
         orbitSettingsLabel.config(bg="Gray", width=30)
-        orbitSettingsLabel.grid(column=0, row=3, columnspan=2, pady=5)
-        
-        orbitRadiusLabel = Label(self.settingsWin, text = "Orbit Radius (Px):")
-        orbitRadiusLabel.grid(column=0, row=4)
-        orbitRadiusSlider = Scale(self.settingsWin, from_=25, to=100, orient=HORIZONTAL)
-        orbitRadiusSlider.grid(column=1, row=4)
+        orbitSettingsLabel.grid(column=0, row=5, columnspan=3, pady=5)
 
-        orbitSpeedLabel = Label(self.settingsWin, text = "Orbit Radius (Px):")
-        orbitSpeedLabel.grid(column=0, row=5)
-        orbitSpeedSlider = Scale(self.settingsWin, from_=25, to=100, orient=HORIZONTAL)
-        orbitSpeedSlider.grid(column=1, row=5)
-        
         orbitDirectionLabel = Label(self.settingsWin, text = "Orbit Direction:")
         orbitDirectionLabel.grid(column=0, row=6)
+        clockwiseBtn = Radiobutton(self.settingsWin, image=self.clockwise, variable=self.orbitDirection, value=0, indicator=0, command=lambda: print(self.orbitDirection.get()))
+        clockwiseBtn.grid(column=1, row=6)
+        antiClockwiseBtn = Radiobutton(self.settingsWin, image=self.antiClockwise, variable=self.orbitDirection, value=1, indicator=0, command=lambda: print(self.orbitDirection.get()))
+        antiClockwiseBtn.grid(column=2, row=6)
+        
+        orbitRadiusLabel = Label(self.settingsWin, text = "Orbit Speed:")
+        orbitRadiusLabel.grid(column=0, row=7)
+        orbitRadiusSlider = Scale(self.settingsWin, from_=25, to=100, orient=HORIZONTAL, variable=self.orbitRadius)
+        orbitRadiusSlider.grid(column=1, row=7, columnspan=2)
+
+        orbitSpeedLabel = Label(self.settingsWin, text = "Orbit Radius (Px):")
+        orbitSpeedLabel.grid(column=0, row=8)
+        orbitSpeedSlider = Scale(self.settingsWin, from_=25, to=100, orient=HORIZONTAL, variable=self.orbitSpeed)
+        orbitSpeedSlider.grid(column=1, row=8, columnspan=2)
 
         orbitRefreshRateLabel = Label(self.settingsWin, text = "Orbit Refresh Rate:")
-        orbitRefreshRateLabel.grid(column=0, row=7)
+        orbitRefreshRateLabel.grid(column=0, row=9)
+        orbitRefreshRateSlider = Scale(self.settingsWin, from_=5, to=144, orient=HORIZONTAL, variable=self.refreshRate)
+        orbitRefreshRateSlider.grid(column=1, row=9, columnspan=2)
+        refreshRateInfoLabel = Label(self.settingsWin, text = "*Higher refresh rates are more taxing.\n A lower refresh rate is recommened\n for slower machines.")
+        refreshRateInfoLabel.grid(column=0, row=10, columnspan=3)
 
+        saveSettingsButton = Button(self.settingsWin, width=8, text="Save", bg="light blue", command="")
+        saveSettingsButton.grid(column=2, row=11, pady=0)
 
 
 def main():
