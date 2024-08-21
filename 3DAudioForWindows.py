@@ -6,7 +6,7 @@ import os
 dir = os.path.dirname(__file__)
 
 
-#mathmatical Functions
+#Mathmatical Functions
 def distanceBetweenPoints(x1,y1,x2,y2):
     changeInX = x2 - x1
     changeInY = y2 - y1
@@ -63,8 +63,9 @@ class Audio3DInterface:
 
     def loadSettings(self):
         self.minLvl.set(33)
-        self.orbitSpeed.set(50)
-        self.orbitRadius.set(26)
+        self.orbitDirection.set(1)
+        self.orbitSpeed.set(1)
+        self.orbitRadius.set(25)
         self.refreshRate.set(12)
     
     def onClosing(self):
@@ -93,22 +94,25 @@ class Audio3DInterface:
         canvas.unbind('<B1-Motion>')
         canvas.unbind('<Button-1>')
     
-    def orbitAudio(self, audioSource, radius, canvas, canvasCentre, orbitRadius):
+    def orbitAudio(self, audioSource, radius, canvas, canvasCentre):
         self.orbitRunning = True
         self.disableClickMode(canvas)
         angle = angleBetweenPoints2(canvasCentre[0], canvas.coords(audioSource)[0]+ radius/2, canvasCentre[1], canvas.coords(audioSource)[1]+ radius/2)
         #print("start angle:", angle)
         canvas.moveto(audioSource, canvasCentre[0] + math.cos(angle)*radius - radius/2, canvasCentre[1] + math.sin(angle)*radius - radius/2)
+        #count = 0
 
         while self.mode.get() == 1:
-            angle += (1/72*math.pi)
-            newX = canvasCentre[0] + (math.cos(angle) * orbitRadius)
-            newY = canvasCentre[1] + (math.sin(angle) * orbitRadius)
+            angle += (1/6*math.pi/self.refreshRate.get()*self.orbitSpeed.get()*self.orbitDirection.get())
+            newX = canvasCentre[0] + (math.cos(angle) * self.orbitRadius.get())
+            newY = canvasCentre[1] + (math.sin(angle) * self.orbitRadius.get())
 
             canvas.moveto(audioSource, newX - radius/2, newY - radius/2)
             self.volumeChange(newX, newY, canvasCentre)
+            #count+=1
+            #print(count)
 
-            time.sleep(12/144)
+            time.sleep(1/self.refreshRate.get())
         self.orbitRunning = False
 
     def volumeChange(self, newX, newY, canvasCentre):
@@ -120,10 +124,6 @@ class Audio3DInterface:
             intensityMultiplier = 1
 
         angle = angleBetweenPoints(canvasCentre[0], newX, distance)
-
-        #Old exponential functions
-        #leftIntensity = ((((math.sin(angle-math.pi)/2)+0.5)/(3/2))+(1/3)) * intensityMultiplier #minimum audio level of 1/3
-        #rightIntensity = ((((math.sin(angle)/2)+0.5)/(3/2))+(1/3)) * intensityMultiplier
 
         #New linear functions
         leftIntensity = ((((((angle/(math.pi/2))*-1)/2)+0.5)/(3/2))+(1/3)) * intensityMultiplier #minimum audio level of 1/3
@@ -157,7 +157,7 @@ class Audio3DInterface:
         #Modes
         def threadStart():
             if not self.orbitRunning:
-                orbitThread = threading.Thread(target=self.orbitAudio, args=(audioSource, radius, canvas, canvasCentre, 25))
+                orbitThread = threading.Thread(target=self.orbitAudio, args=(audioSource, radius, canvas, canvasCentre))
                 orbitThread.daemon = True
                 orbitThread.start()
 
@@ -188,11 +188,12 @@ class Audio3DInterface:
 
     ##### Settings Window ####
     def createSettingsWidgets(self):
-        self.settingsWin = Toplevel(self.root)
-        self.settingsWin.title("Settings")
-        self.settingsWin.geometry("225x430")
-        self.clockwise = PhotoImage(file=os.path.join(dir, "images/clockwise.png")).subsample(18,18)
-        self.antiClockwise = PhotoImage(file=os.path.join(dir, "images/antiClockwise.png")).subsample(18,18)
+        if not any(isinstance(x, Toplevel) for x in self.root.winfo_children()): #Only one topLevel window at a time
+            self.settingsWin = Toplevel(self.root)
+            self.settingsWin.title("Settings")
+            self.settingsWin.geometry("225x430")
+            self.clockwise = PhotoImage(file=os.path.join(dir, "images/clockwise.png")).subsample(18,18)
+            self.antiClockwise = PhotoImage(file=os.path.join(dir, "images/antiClockwise.png")).subsample(18,18)
     #Output Device Settings
         outputDeviceSettingsLabel = Label(self.settingsWin, text = "Output Device Settings:")
         outputDeviceSettingsLabel.config(bg="Gray", width=30)
@@ -219,20 +220,20 @@ class Audio3DInterface:
 
         orbitDirectionLabel = Label(self.settingsWin, text = "Orbit Direction:")
         orbitDirectionLabel.grid(column=0, row=6)
-        clockwiseBtn = Radiobutton(self.settingsWin, image=self.clockwise, variable=self.orbitDirection, value=0, indicator=0, command=lambda: print(self.orbitDirection.get()))
+        clockwiseBtn = Radiobutton(self.settingsWin, image=self.clockwise, variable=self.orbitDirection, value=1, indicator=0)
         clockwiseBtn.grid(column=1, row=6)
-        antiClockwiseBtn = Radiobutton(self.settingsWin, image=self.antiClockwise, variable=self.orbitDirection, value=1, indicator=0, command=lambda: print(self.orbitDirection.get()))
+        antiClockwiseBtn = Radiobutton(self.settingsWin, image=self.antiClockwise, variable=self.orbitDirection, value=-1, indicator=0)
         antiClockwiseBtn.grid(column=2, row=6)
         
-        orbitRadiusLabel = Label(self.settingsWin, text = "Orbit Speed:")
-        orbitRadiusLabel.grid(column=0, row=7)
+        orbitSpeedLabel = Label(self.settingsWin, text = "Orbit Speed:")
+        orbitSpeedLabel.grid(column=0, row=7)
+        orbitSpeedSlider = Scale(self.settingsWin, from_=1, to=10, orient=HORIZONTAL, variable=self.orbitSpeed)
+        orbitSpeedSlider.grid(column=1, row=7, columnspan=2)
+        
+        orbitRadiusLabel = Label(self.settingsWin, text = "Orbit Radius (Px):")
+        orbitRadiusLabel.grid(column=0, row=8)
         orbitRadiusSlider = Scale(self.settingsWin, from_=25, to=100, orient=HORIZONTAL, variable=self.orbitRadius)
-        orbitRadiusSlider.grid(column=1, row=7, columnspan=2)
-
-        orbitSpeedLabel = Label(self.settingsWin, text = "Orbit Radius (Px):")
-        orbitSpeedLabel.grid(column=0, row=8)
-        orbitSpeedSlider = Scale(self.settingsWin, from_=25, to=100, orient=HORIZONTAL, variable=self.orbitSpeed)
-        orbitSpeedSlider.grid(column=1, row=8, columnspan=2)
+        orbitRadiusSlider.grid(column=1, row=8, columnspan=2)
 
         orbitRefreshRateLabel = Label(self.settingsWin, text = "Orbit Refresh Rate:")
         orbitRefreshRateLabel.grid(column=0, row=9)
