@@ -49,6 +49,8 @@ class Audio3DInterface:
         self.refreshRate = IntVar()
         self.orbitRunning = False
 
+        self.settingsDictionary = {"minLvl": self.minLvl, "orbitDirection": self.orbitDirection, "orbitSpeed": self.orbitSpeed, "orbitRadius": self.orbitRadius, "refreshRate": self.refreshRate}
+
         self.setupAudio()
         self.loadSettings()
 
@@ -62,11 +64,20 @@ class Audio3DInterface:
         self.rightStartingVolume = self.volume.GetChannelVolumeLevelScalar(1)
 
     def loadSettings(self):
-        self.minLvl.set(33)
-        self.orbitDirection.set(1)
-        self.orbitSpeed.set(1)
-        self.orbitRadius.set(25)
-        self.refreshRate.set(12)
+        with open(os.path.relpath('settings\settings.txt', dir), 'r') as f:
+            for setting in self.settingsDictionary.values():
+                setting.set(int(f.readline().split(':')[1]))
+    
+    def saveSettings(self):
+        with open(os.path.relpath('settings\settings.txt', dir), 'w') as f:
+            for settingName, setting in self.settingsDictionary.items():
+                f.write(f"{settingName}: {setting.get()}\n")
+
+    def restoreDefaultSettings(self):
+        with open(os.path.relpath('settings\defaultSettings.txt', dir), 'r') as defaultFile, open(os.path.relpath('settings\settings.txt', dir), 'w') as settings:
+            for line in defaultFile:
+                settings.write(line)
+        self.loadSettings()
     
     def onClosing(self):
         self.volume.SetChannelVolumeLevelScalar(0, self.leftStartingVolume, None)
@@ -125,10 +136,10 @@ class Audio3DInterface:
 
         angle = angleBetweenPoints(canvasCentre[0], newX, distance)
 
-        #New linear functions
-        leftIntensity = ((((((angle/(math.pi/2))*-1)/2)+0.5)/(3/2))+(1/3)) * intensityMultiplier #minimum audio level of 1/3
-        rightIntensity = (((((angle/(math.pi/2))/2)+0.5)/(3/2))+(1/3)) * intensityMultiplier
-
+        #Linear Audio Level Functions
+        minLvlFraction =  self.minLvl.get()/100
+        leftIntensity = ((((((angle/(math.pi/2))*-1)/2)+0.5)*(1-minLvlFraction))+minLvlFraction) * intensityMultiplier #minimum audio level of minLvlFraction
+        rightIntensity = (((((angle/(math.pi/2))/2)+0.5)*(1-minLvlFraction))+minLvlFraction) * intensityMultiplier
         #print(leftIntensity, rightIntensity)
         
         self.volume.SetChannelVolumeLevelScalar(0, leftIntensity, None) #Left Channel
@@ -192,6 +203,7 @@ class Audio3DInterface:
             self.settingsWin = Toplevel(self.root)
             self.settingsWin.title("Settings")
             self.settingsWin.geometry("225x430")
+            self.settingsWin.resizable(False, False)
             self.clockwise = PhotoImage(file=os.path.join(dir, "images/clockwise.png")).subsample(18,18)
             self.antiClockwise = PhotoImage(file=os.path.join(dir, "images/antiClockwise.png")).subsample(18,18)
     #Output Device Settings
@@ -211,7 +223,7 @@ class Audio3DInterface:
 
         minLvlLabel = Label(self.settingsWin, text = "Min Audio Level:")
         minLvlLabel.grid(column=0, row=4)
-        minLvlSlider = Scale(self.settingsWin, from_=25, to=100, orient=HORIZONTAL, variable=self.minLvl)
+        minLvlSlider = Scale(self.settingsWin, from_=0, to=75, orient=HORIZONTAL, variable=self.minLvl)
         minLvlSlider.grid(column=1, row=4, columnspan=2)
     #Orbit Settings
         orbitSettingsLabel = Label(self.settingsWin, text = "Orbit Mode Settings:")
@@ -242,8 +254,11 @@ class Audio3DInterface:
         refreshRateInfoLabel = Label(self.settingsWin, text = "*Higher refresh rates are more taxing.\n A lower refresh rate is recommened\n for slower machines.")
         refreshRateInfoLabel.grid(column=0, row=10, columnspan=3)
 
-        saveSettingsButton = Button(self.settingsWin, width=8, text="Save", bg="light blue", command="")
-        saveSettingsButton.grid(column=2, row=11, pady=0)
+        restoreDefaultButton = Button(self.settingsWin, width=12, text="Restore Default", command=self.restoreDefaultSettings)
+        restoreDefaultButton.grid(column=0, row=11)
+        
+        saveSettingsButton = Button(self.settingsWin, width=8, text="Save", bg="light blue", command=self.saveSettings)
+        saveSettingsButton.grid(column=2, row=11)
 
 
 def main():

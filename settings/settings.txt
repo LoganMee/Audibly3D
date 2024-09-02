@@ -1,0 +1,5 @@
+minLvl: 25
+orbitDirection: 1
+orbitSpeed: 1
+orbitRadius: 25
+refreshRate: 12
