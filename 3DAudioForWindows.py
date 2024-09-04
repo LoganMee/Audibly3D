@@ -1,7 +1,9 @@
 from tkinter import *
 import math, time, threading
+import comtypes
 from comtypes import CLSCTX_ALL
-from pycaw.pycaw import AudioUtilities, IAudioEndpointVolume
+from pycaw.pycaw import AudioUtilities, IAudioEndpointVolume, IMMDeviceEnumerator, EDataFlow, DEVICE_STATE
+from pycaw.constants import CLSID_MMDeviceEnumerator
 import os
 dir = os.path.dirname(__file__)
 
@@ -48,6 +50,7 @@ class Audio3DInterface:
         self.orbitRadius = IntVar()
         self.refreshRate = IntVar()
         self.orbitRunning = False
+        self.currentOutputDevice = StringVar()
 
         self.settingsDictionary = {"minLvl": self.minLvl, "orbitDirection": self.orbitDirection, "orbitSpeed": self.orbitSpeed, "orbitRadius": self.orbitRadius, "refreshRate": self.refreshRate}
 
@@ -62,6 +65,22 @@ class Audio3DInterface:
         self.volume = self.interface.QueryInterface(IAudioEndpointVolume)
         self.leftStartingVolume = self.volume.GetChannelVolumeLevelScalar(0)
         self.rightStartingVolume = self.volume.GetChannelVolumeLevelScalar(1)
+        self.getCurrentOutputDeviceName()
+    
+    def getOutputDevices(self):
+        deviceEnumerator = comtypes.CoCreateInstance(CLSID_MMDeviceEnumerator, IMMDeviceEnumerator, comtypes.CLSCTX_INPROC_SERVER)
+        collection = deviceEnumerator.EnumAudioEndpoints(EDataFlow.eRender.value, DEVICE_STATE.ACTIVE.value)
+        devices = []
+
+        for i in range(collection.GetCount()):
+            dev = collection.Item(i)
+            devices.append(AudioUtilities.CreateDevice(dev))
+        return devices
+    
+    def getCurrentOutputDeviceName(self):
+        for device in self.getOutputDevices():
+            if device.id == self.devices.GetId(): 
+                self.currentOutputDevice.set(device.FriendlyName)
 
     def loadSettings(self):
         with open(os.path.relpath('settings\settings.txt', dir), 'r') as f:
@@ -74,14 +93,17 @@ class Audio3DInterface:
                 f.write(f"{settingName}: {setting.get()}\n")
 
     def restoreDefaultSettings(self):
-        with open(os.path.relpath('settings\defaultSettings.txt', dir), 'r') as defaultFile, open(os.path.relpath('settings\settings.txt', dir), 'w') as settings:
-            for line in defaultFile:
+        with open(os.path.relpath('settings\defaultSettings.txt', dir), 'r') as default, open(os.path.relpath('settings\settings.txt', dir), 'w') as settings:
+            for line in default:
                 settings.write(line)
         self.loadSettings()
     
-    def onClosing(self):
+    def resetToStarting(self):
         self.volume.SetChannelVolumeLevelScalar(0, self.leftStartingVolume, None)
         self.volume.SetChannelVolumeLevelScalar(1, self.rightStartingVolume, None)
+    
+    def onClosing(self):
+        self.resetToStarting()
         self.root.destroy()
     
     def run(self):
@@ -203,60 +225,59 @@ class Audio3DInterface:
             self.settingsWin = Toplevel(self.root)
             self.settingsWin.title("Settings")
             self.settingsWin.geometry("225x430")
-            self.settingsWin.resizable(False, False)
+            #self.settingsWin.resizable(False, False)
             self.clockwise = PhotoImage(file=os.path.join(dir, "images/clockwise.png")).subsample(18,18)
             self.antiClockwise = PhotoImage(file=os.path.join(dir, "images/antiClockwise.png")).subsample(18,18)
     #Output Device Settings
-        outputDeviceSettingsLabel = Label(self.settingsWin, text = "Output Device Settings:")
+        outputDeviceSettingsLabel = Label(self.settingsWin, text="Output Device Settings:")
         outputDeviceSettingsLabel.config(bg="Gray", width=30)
         outputDeviceSettingsLabel.grid(column=0, row=0, columnspan=3)
 
-        outputDeviceLabel = Label(self.settingsWin, text = f"Output Device: ---") #{self.devices.GetId()}"
-        outputDeviceLabel.grid(column=0, row=1)
+        outputDeviceLabel = Label(self.settingsWin, textvariable=self.currentOutputDevice)
+        outputDeviceLabel.grid(column=0, row=1, columnspan=3, pady=3)
         
-        refindOutputDeviceButton = Button(self.settingsWin, width=17, text="Refind Output Device", command=self.setupAudio)
-        refindOutputDeviceButton.grid(column=0, row=2, columnspan=3, pady=5)
+        refindOutputDeviceButton = Button(self.settingsWin, width=17, text="Refind Output Device", command=lambda:[self.resetToStarting(), self.setupAudio()])
+        refindOutputDeviceButton.grid(column=0, row=2, columnspan=3, pady=3)
     #Audio Settings
-        audioSettingsLabel = Label(self.settingsWin, text = "Audio Settings:")
+        audioSettingsLabel = Label(self.settingsWin, text="Audio Settings:")
         audioSettingsLabel.config(bg="Gray", width=30)
         audioSettingsLabel.grid(column=0, row=3, columnspan=3, pady=5)
 
-        minLvlLabel = Label(self.settingsWin, text = "Min Audio Level:")
+        minLvlLabel = Label(self.settingsWin, text="Min Audio Level:")
         minLvlLabel.grid(column=0, row=4)
         minLvlSlider = Scale(self.settingsWin, from_=0, to=75, orient=HORIZONTAL, variable=self.minLvl)
         minLvlSlider.grid(column=1, row=4, columnspan=2)
     #Orbit Settings
-        orbitSettingsLabel = Label(self.settingsWin, text = "Orbit Mode Settings:")
+        orbitSettingsLabel = Label(self.settingsWin, text="Orbit Mode Settings:")
         orbitSettingsLabel.config(bg="Gray", width=30)
         orbitSettingsLabel.grid(column=0, row=5, columnspan=3, pady=5)
 
-        orbitDirectionLabel = Label(self.settingsWin, text = "Orbit Direction:")
+        orbitDirectionLabel = Label(self.settingsWin, text="Orbit Direction:")
         orbitDirectionLabel.grid(column=0, row=6)
         clockwiseBtn = Radiobutton(self.settingsWin, image=self.clockwise, variable=self.orbitDirection, value=1, indicator=0)
         clockwiseBtn.grid(column=1, row=6)
         antiClockwiseBtn = Radiobutton(self.settingsWin, image=self.antiClockwise, variable=self.orbitDirection, value=-1, indicator=0)
         antiClockwiseBtn.grid(column=2, row=6)
         
-        orbitSpeedLabel = Label(self.settingsWin, text = "Orbit Speed:")
+        orbitSpeedLabel = Label(self.settingsWin, text="Orbit Speed:")
         orbitSpeedLabel.grid(column=0, row=7)
         orbitSpeedSlider = Scale(self.settingsWin, from_=1, to=10, orient=HORIZONTAL, variable=self.orbitSpeed)
         orbitSpeedSlider.grid(column=1, row=7, columnspan=2)
         
-        orbitRadiusLabel = Label(self.settingsWin, text = "Orbit Radius (Px):")
+        orbitRadiusLabel = Label(self.settingsWin, text="Orbit Radius (Px):")
         orbitRadiusLabel.grid(column=0, row=8)
         orbitRadiusSlider = Scale(self.settingsWin, from_=25, to=100, orient=HORIZONTAL, variable=self.orbitRadius)
         orbitRadiusSlider.grid(column=1, row=8, columnspan=2)
 
-        orbitRefreshRateLabel = Label(self.settingsWin, text = "Orbit Refresh Rate:")
+        orbitRefreshRateLabel = Label(self.settingsWin, text="Orbit Refresh Rate:")
         orbitRefreshRateLabel.grid(column=0, row=9)
         orbitRefreshRateSlider = Scale(self.settingsWin, from_=5, to=144, orient=HORIZONTAL, variable=self.refreshRate)
         orbitRefreshRateSlider.grid(column=1, row=9, columnspan=2)
-        refreshRateInfoLabel = Label(self.settingsWin, text = "*Higher refresh rates are more taxing.\n A lower refresh rate is recommened\n for slower machines.")
+        refreshRateInfoLabel = Label(self.settingsWin, text="*Higher refresh rates are more taxing.\n A lower refresh rate is recommened\n for slower machines.")
         refreshRateInfoLabel.grid(column=0, row=10, columnspan=3)
 
         restoreDefaultButton = Button(self.settingsWin, width=12, text="Restore Default", command=self.restoreDefaultSettings)
         restoreDefaultButton.grid(column=0, row=11)
-        
         saveSettingsButton = Button(self.settingsWin, width=8, text="Save", bg="light blue", command=self.saveSettings)
         saveSettingsButton.grid(column=2, row=11)
 
