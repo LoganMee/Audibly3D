@@ -35,7 +35,7 @@ class Audio3DInterface:
     def __init__(self):
         self.root = Tk()
         self.root.title("3D Audio")
-        self.root.geometry("275x400")
+        self.root.geometry("275x410")
         self.root.resizable(False, False)
         
         self.mainFrame = Frame(self.root)
@@ -50,7 +50,15 @@ class Audio3DInterface:
         self.orbitRadius = IntVar()
         self.refreshRate = IntVar()
         self.orbitRunning = False
+        self.gifActive = True
         self.currentOutputDevice = StringVar()
+
+        self.clockwise = PhotoImage(file=os.path.join(dir, "images/clockwise.png")).subsample(18,18)
+        self.antiClockwise = PhotoImage(file=os.path.join(dir, "images/antiClockwise.png")).subsample(18,18)
+        self.headImg = PhotoImage(file=os.path.join(dir, "images/topViewMan50.png"))
+        self.audioSourceGif = PhotoImage(file=os.path.join(dir, "images/audioSourceGif.gif"))
+        self.aSframeCount = 4
+        self.aSframes = [PhotoImage(file=os.path.join(dir,"images/audioSourceGif.gif"), format = 'gif -index %i' %(i)) for i in range(self.aSframeCount)]
 
         self.settingsDictionary = {"minLvl": self.minLvl, "orbitDirection": self.orbitDirection, "orbitSpeed": self.orbitSpeed, "orbitRadius": self.orbitRadius, "refreshRate": self.refreshRate}
 
@@ -116,7 +124,7 @@ class Audio3DInterface:
         newX = event.x
         newY = event.y
         if 0 <= newX <= canvasWidth and 0 <= newY <= canvasHeight: #Stops audio source from being dragged outside canvas
-            canvas.moveto(audioSource, newX - radius/2, newY - radius/2)
+            canvas.moveto(audioSource, newX - radius, newY - radius)
             self.volumeChange(newX, newY, canvasCentre)
     
     def clickMode(self, audioSource, radius, canvas, canvasCentre, canvasHeight, canvasWidth):
@@ -130,20 +138,17 @@ class Audio3DInterface:
     def orbitAudio(self, audioSource, radius, canvas, canvasCentre):
         self.orbitRunning = True
         self.disableClickMode(canvas)
-        angle = angleBetweenPoints2(canvasCentre[0], canvas.coords(audioSource)[0]+ radius/2, canvasCentre[1], canvas.coords(audioSource)[1]+ radius/2)
+        angle = angleBetweenPoints2(canvasCentre[0], canvas.coords(audioSource)[0], canvasCentre[1], canvas.coords(audioSource)[1])
         #print("start angle:", angle)
-        canvas.moveto(audioSource, canvasCentre[0] + math.cos(angle)*radius - radius/2, canvasCentre[1] + math.sin(angle)*radius - radius/2)
-        #count = 0
+        canvas.moveto(audioSource, canvasCentre[0] + math.cos(angle)*radius - radius, canvasCentre[1] + math.sin(angle)*radius - radius)
 
         while self.mode.get() == 1:
             angle += (1/6*math.pi/self.refreshRate.get()*self.orbitSpeed.get()*self.orbitDirection.get())
             newX = canvasCentre[0] + (math.cos(angle) * self.orbitRadius.get())
             newY = canvasCentre[1] + (math.sin(angle) * self.orbitRadius.get())
 
-            canvas.moveto(audioSource, newX - radius/2, newY - radius/2)
+            canvas.moveto(audioSource, newX - radius, newY - radius)
             self.volumeChange(newX, newY, canvasCentre)
-            #count+=1
-            #print(count)
 
             time.sleep(1/self.refreshRate.get())
         self.orbitRunning = False
@@ -166,6 +171,13 @@ class Audio3DInterface:
         
         self.volume.SetChannelVolumeLevelScalar(0, leftIntensity, None) #Left Channel
         self.volume.SetChannelVolumeLevelScalar(1, rightIntensity, None) #Right Channel
+    
+    def audioSourceAnimation(self, audioSource, canvas):
+        while self.gifActive:
+            for i in range(self.aSframeCount):
+                canvas.itemconfig(audioSource, image=self.aSframes[i])
+                time.sleep(1)
+
 
     def createWidgets(self):
         #################### GUI ####################
@@ -176,11 +188,17 @@ class Audio3DInterface:
         canvasCentre = [canvasWidth/2, canvasHeight/2]
 
         canvas = Canvas(self.mainFrame, width=canvasWidth, height=canvasHeight, bg="white")
-        head = canvas.create_oval(canvasCentre[0]-radius, canvasCentre[1]-radius, canvasCentre[0]+radius, canvasCentre[1]+radius, outline="black", fill="wheat", width=2)
-        audioSource = canvas.create_oval(canvasCentre[0]-radius/2, canvasCentre[1]-radius*2, canvasCentre[0]+radius/2, canvasCentre[1]-radius, outline="black", fill="Grey", width=2)
+        #head = canvas.create_oval(canvasCentre[0]-radius, canvasCentre[1]-radius, canvasCentre[0]+radius, canvasCentre[1]+radius, outline="black", fill="wheat", width=2)
+        head = canvas.create_image(canvasCentre[0], canvasCentre[1], image=self.headImg, anchor=CENTER)
+        #audioSource = canvas.create_oval(canvasCentre[0]-radius/2, canvasCentre[1]-radius*2, canvasCentre[0]+radius/2, canvasCentre[1]-radius, outline="black", fill="Grey", width=2)
+        self.audioSource = canvas.create_image(canvasCentre[0], canvasCentre[1]-radius*2, image=self.audioSourceGif, anchor=CENTER)
         canvas.grid(column=0, row=0)
 
-        self.clickMode(audioSource, radius, canvas, canvasCentre, canvasHeight, canvasWidth)
+        sourceGifThread = threading.Thread(target=self.audioSourceAnimation, args=(self.audioSource, canvas))
+        sourceGifThread.daemon = True
+        sourceGifThread.start()
+
+        self.clickMode(self.audioSource, radius, canvas, canvasCentre, canvasHeight, canvasWidth)
 
         #Menu
         menubar = Menu(self.root)
@@ -190,7 +208,7 @@ class Audio3DInterface:
         #Modes
         def threadStart():
             if not self.orbitRunning:
-                orbitThread = threading.Thread(target=self.orbitAudio, args=(audioSource, radius, canvas, canvasCentre))
+                orbitThread = threading.Thread(target=self.orbitAudio, args=(self.audioSource, radius, canvas, canvasCentre))
                 orbitThread.daemon = True
                 orbitThread.start()
 
@@ -203,7 +221,7 @@ class Audio3DInterface:
             indicator=0,
             bg="light blue",
             width=15,
-            command=lambda:self.clickMode(audioSource, radius, canvas, canvasCentre, canvasHeight, canvasWidth))
+            command=lambda:self.clickMode(self.audioSource, radius, canvas, canvasCentre, canvasHeight, canvasWidth))
         orbitModeButton = Radiobutton(
             self.sideBar,
             text="Orbit",
@@ -219,15 +237,13 @@ class Audio3DInterface:
 
 
 
-    ##### Settings Window ####
+    ##### Settings Window #####
     def createSettingsWidgets(self):
         if not any(isinstance(x, Toplevel) for x in self.root.winfo_children()): #Only one topLevel window at a time
             self.settingsWin = Toplevel(self.root)
             self.settingsWin.title("Settings")
             self.settingsWin.geometry("225x430")
-            #self.settingsWin.resizable(False, False)
-            self.clockwise = PhotoImage(file=os.path.join(dir, "images/clockwise.png")).subsample(18,18)
-            self.antiClockwise = PhotoImage(file=os.path.join(dir, "images/antiClockwise.png")).subsample(18,18)
+            self.settingsWin.resizable(False, False)
     #Output Device Settings
         outputDeviceSettingsLabel = Label(self.settingsWin, text="Output Device Settings:")
         outputDeviceSettingsLabel.config(bg="Gray", width=30)
@@ -271,11 +287,11 @@ class Audio3DInterface:
 
         orbitRefreshRateLabel = Label(self.settingsWin, text="Orbit Refresh Rate:")
         orbitRefreshRateLabel.grid(column=0, row=9)
-        orbitRefreshRateSlider = Scale(self.settingsWin, from_=5, to=144, orient=HORIZONTAL, variable=self.refreshRate)
+        orbitRefreshRateSlider = Scale(self.settingsWin, from_=5, to=20, orient=HORIZONTAL, variable=self.refreshRate)
         orbitRefreshRateSlider.grid(column=1, row=9, columnspan=2)
         refreshRateInfoLabel = Label(self.settingsWin, text="*Higher refresh rates are more taxing.\n A lower refresh rate is recommened\n for slower machines.")
         refreshRateInfoLabel.grid(column=0, row=10, columnspan=3)
-
+    #Main Buttons
         restoreDefaultButton = Button(self.settingsWin, width=12, text="Restore Default", command=self.restoreDefaultSettings)
         restoreDefaultButton.grid(column=0, row=11)
         saveSettingsButton = Button(self.settingsWin, width=8, text="Save", bg="light blue", command=self.saveSettings)
