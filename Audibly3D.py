@@ -34,9 +34,10 @@ class Audio3DInterface:
 
     def __init__(self):
         self.root = Tk()
-        self.root.title("3D Audio")
-        self.root.geometry("275x410")
+        self.root.title("Audibly3D")
+        self.root.geometry("275x430")
         self.root.resizable(False, False)
+        self.root.iconbitmap(os.path.join(dir, "images\logoIcon.ico"))
         
         self.mainFrame = Frame(self.root)
         self.mainFrame.grid(column=0, row=0, padx=10, pady=10)
